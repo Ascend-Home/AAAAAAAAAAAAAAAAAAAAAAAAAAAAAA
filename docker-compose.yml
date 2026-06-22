@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  trainer:
+    build: .
+    image: max-ai:latest
+    runtime: nvidia
+    shm_size: 256gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    environment:
+      - NCCL_DEBUG=INFO
+      - NCCL_IB_DISABLE=0
+      - NCCL_SOCKET_IFNAME=eth0
+      - CUDA_DEVICE_MAX_CONNECTIONS=1
+    volumes:
+      - ./data:/data
+      - ./checkpoints:/checkpoints
+      - ./logs:/logs
+    command: bash scripts/launch_pretrain.sh
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
