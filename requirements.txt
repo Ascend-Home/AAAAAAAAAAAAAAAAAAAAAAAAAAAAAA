@@ -1,0 +1,8 @@
+torch==2.5.1
+numpy
+sentencepiece
+einops
+pyyaml
+fastapi
+uvicorn[standard]
+pydantic
