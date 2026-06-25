@@ -1,5 +1,7 @@
 """FastAPI inference server."""
-import os, torch, yaml
+import os
+import torch
+import yaml
 from fastapi import FastAPI
 from pydantic import BaseModel
 from model import MaxTransformer, MaxConfig
@@ -16,20 +18,27 @@ model = MaxTransformer(cfg).to(DEVICE).eval()
 model.load_state_dict(torch.load(CHECKPOINT, map_location=DEVICE))
 sp    = spm.SentencePieceProcessor(model_file=TOKENIZER)
 
+
 class Req(BaseModel):
     prompt: str
     max_tokens: int = 512
     temperature: float = 0.7
 
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.post("/generate")
 @torch.no_grad()
 def gen(r: Req):
-    ids = torch.tensor([sp.encode(r.prompt)]).to(DEVICE)
-    for _ in range(r.max_tokens):
-        logits, _ = model(ids)
-        logits = logits[:, -1] / r.temperature
-        probs  = torch.softmax(logits, -1)
-        nxt    = torch.multinomial(probs, 1)
-        ids    = torch.cat([ids, nxt], 1)
-        if nxt.item() == sp.piece_to_id("<|im_end|>"): break
-    return {"text": sp.decode(ids[0].tolist())}
+    ids    = torch.tensor([sp.encode(r.prompt)]).to(DEVICE)
+    eos_id = sp.piece_to_id("<|im_end|>")
+    out    = model.generate(
+        ids,
+        max_new_tokens=r.max_tokens,
+        temperature=r.temperature,
+        eos_token_id=eos_id,
+    )
+    return {"text": sp.decode(out[0].tolist())}
